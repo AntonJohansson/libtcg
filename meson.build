@@ -64,6 +64,7 @@ target_dirs = config_host['TARGET_DIRS'].split()
 have_linux_user = false
 have_bsd_user = false
 have_system = false
+have_libtcg = get_option('libtcg')
 foreach target : target_dirs
   have_linux_user = have_linux_user or target.endswith('linux-user')
   have_bsd_user = have_bsd_user or target.endswith('bsd-user')
@@ -2938,9 +2939,15 @@ foreach target : target_dirs
         get_option('interp_prefix').replace('%M', config_target['TARGET_NAME'])
     }
   endif
+
   if llvm_to_tcg_enabled
     config_target += {
       'CONFIG_LLVM_TO_TCG': 'y',
+    }
+  endif
+  if have_libtcg
+    config_target += {
+      'CONFIG_LIBTCG': 'y',
     }
   endif
 
@@ -3063,6 +3070,7 @@ config_all += {
   'CONFIG_SYSTEM_ONLY': have_system,
   'CONFIG_USER_ONLY': have_user,
   'CONFIG_LLVM_TO_TCG': llvm_to_tcg_enabled,
+  'CONFIG_LIBTCG': have_libtcg,
   'CONFIG_ALL': true,
 }
 
@@ -3879,6 +3887,18 @@ foreach target : target_dirs
         'dependencies': specific_fuzz.dependencies(),
       }]
     endif
+  elif have_libtcg
+    emulator = shared_library('qemu-' + target_name,
+                              include_directories: target_inc,
+                              install: true,
+                              objects: lib.extract_all_objects(recursive: true),
+                              dependencies: arch_deps + deps,
+                              c_args: c_args,
+                              link_depends: [block_syms, qemu_syms],
+                              link_language: link_language,
+                              link_args: link_args)
+
+    execs = []
   else
     execs = [{
       'name': 'qemu-' + target_name,
