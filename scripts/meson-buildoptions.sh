@@ -339,10 +339,10 @@ _meson_option_parse() {
     --disable-guest-agent-msi) printf "%s" -Dguest_agent_msi=disabled ;;
     --enable-hexagon-idef-parser) printf "%s" -Dhexagon_idef_parser=true ;;
     --disable-hexagon-idef-parser) printf "%s" -Dhexagon_idef_parser=false ;;
-    --enable-hv-balloon) printf "%s" -Dhv_balloon=enabled ;;
-    --disable-hv-balloon) printf "%s" -Dhv_balloon=disabled ;;
     --enable-hexagon-llvm-to-tcg-enabled) printf "%s" -Dhexagon_llvm_to_tcg_enabled=true ;;
     --disable-hexagon-llvm-to-tcg-enabled) printf "%s" -Dhexagon_llvm_to_tcg_enabled=false ;;
+    --enable-hv-balloon) printf "%s" -Dhv_balloon=enabled ;;
+    --disable-hv-balloon) printf "%s" -Dhv_balloon=disabled ;;
     --enable-hvf) printf "%s" -Dhvf=enabled ;;
     --disable-hvf) printf "%s" -Dhvf=disabled ;;
     --iasl=*) quote_sh "-Diasl=$2" ;;
