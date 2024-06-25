@@ -562,6 +562,9 @@ struct TCGContext {
 
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
+
+
+    int (*dispatcher)(void *func, TCGTemp *ret_temp, int nargs, TCGTemp **args);
 };
 
 static inline bool temp_readonly(TCGTemp *ts)

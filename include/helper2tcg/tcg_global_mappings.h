@@ -105,8 +105,8 @@ static inline void init_cpu_tcg_mappings(cpu_tcg_mapping *mappings, size_t size)
             const char *name = m.cpu_var_names[j];
 
             if (m.cpu_var_size < 8) {
-                *(TCGv *) tcg_addr =
-                    tcg_global_mem_new(tcg_env, cpu_offset, name);
+                *(TCGv_i32 *) tcg_addr =
+                    tcg_global_mem_new_i32(tcg_env, cpu_offset, name);
             } else {
                 *(TCGv_i64 *) tcg_addr =
                     tcg_global_mem_new_i64(tcg_env, cpu_offset, name);

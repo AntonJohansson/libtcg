@@ -406,6 +406,8 @@ struct TranslatedFunction {
   StringRef Name;
   std::string Decl;
   std::string Code;
+  std::string DispatchCode;
+  bool IsHelper;
   std::set<StringRef> ExternalSymbols;
 };
 
@@ -429,13 +431,23 @@ translateFunction(const Function *F,
   };
 
   // Remove prefix for helper functions to get cleaner emitted names
-  TF.Name.consume_front("helper_");
+  TF.IsHelper = TF.Name.consume_front("helper_");
 
   raw_string_ostream Out(TF.Code);
   raw_string_ostream HeaderWriter(TF.Decl);
   // TODO(anjo): Keep as buffered and flush
   Out.SetUnbuffered();
   HeaderWriter.SetUnbuffered();
+
+  raw_string_ostream DispatchWriter(TF.DispatchCode);
+  DispatchWriter.SetUnbuffered();
+  std::string DispatchCall;
+  raw_string_ostream DispatchCallWriter(DispatchCall);
+  DispatchCallWriter.SetUnbuffered();
+  int dispatch_arg_count = 0;
+  bool IsVectorInst = false;
+
+
 
   // Functions that should be ignored are convereted
   // to declarations, see FilterFunctionsPass.
@@ -453,6 +465,7 @@ translateFunction(const Function *F,
 
   if (!F->getReturnType()->isVoidTy()) {
     assert(TAD.ReturnValue.hasValue());
+    IsVectorInst = (*TAD.ReturnValue).Kind == IrPtrToOffset;
     CArgs.push_back(*TAD.ReturnValue);
   }
 
@@ -461,6 +474,7 @@ translateFunction(const Function *F,
     if (!MaybeMapped) {
       return mkError("failed mapping arg");
     }
+    IsVectorInst = IsVectorInst or (MaybeMapped.get().Kind == IrPtrToOffset);
     CArgs.push_back(MaybeMapped.get());
   }
 
@@ -472,6 +486,58 @@ translateFunction(const Function *F,
   while (CArgIt != CArgs.end()) {
     HeaderWriter << ", " << tcg::getType(*CArgIt) << ' ' << tcg::getName(*CArgIt);
     ++CArgIt;
+  }
+
+    if (!IsVectorInst) {
+    DispatchCallWriter << "emit_" << TF.Name << "(";
+    auto CArgIt = CArgs.begin();
+    if (CArgIt != CArgs.end()) {
+      DispatchWriter << tcg::getType(*CArgIt) << ' ' << tcg::getName(*CArgIt) << " = ";
+      if (TAD.ReturnValue and CArgIt->Id == (*TAD.ReturnValue).Id) {
+        assert(CArgIt->Kind == IrValue);
+        DispatchWriter << "temp_tcgv_i" << CArgIt->TcgSize << "(ret_temp);\n";
+      } else {
+        switch(CArgIt->Kind) {
+        case IrPtr:
+        case IrEnv:
+          DispatchWriter << "temp_tcgv_ptr(args[" << dispatch_arg_count++ << "]);\n";
+          break;
+        case IrValue:
+          DispatchWriter << "temp_tcgv_i" << CArgIt->TcgSize << "(args[" << dispatch_arg_count++ << "]);\n";
+          break;
+        case IrImmediate:
+          DispatchWriter << "args[" << dispatch_arg_count++ << "]->val;\n";
+          break;
+        default:
+          assert(0);
+        };
+      }
+      DispatchCallWriter << tcg::getName(*CArgIt);
+      ++CArgIt;
+    }
+    while (CArgIt != CArgs.end()) {
+      DispatchWriter << tcg::getType(*CArgIt) << ' ' << tcg::getName(*CArgIt) << " = ";
+      switch(CArgIt->Kind) {
+      case IrPtr:
+      case IrEnv:
+        DispatchWriter << "temp_tcgv_ptr(args[" << dispatch_arg_count++ << "]);\n";
+        break;
+      case IrValue:
+        DispatchWriter << "temp_tcgv_i" << CArgIt->TcgSize << "(args[" << dispatch_arg_count++ << "]);\n";
+        break;
+      case IrImmediate:
+        DispatchWriter << "args[" << dispatch_arg_count++ << "]->val;\n";
+        break;
+      case IrPtrToOffset:
+        break;
+      default:
+        assert(0);
+      };
+      DispatchCallWriter << ", " << tcg::getName(*CArgIt);
+      ++CArgIt;
+    }
+    DispatchCallWriter << ");\n";
+    DispatchWriter << DispatchCallWriter.str();
   }
 
   // Copy over function declaration from header to source file
@@ -1783,6 +1849,8 @@ translateFunction(const Function *F,
         }
         tcg::genBr(Out, DefaultLabel);
       } break;
+      case Instruction::Freeze: {
+      } break;
       default: {
         return mkError("Instruction not yet implemented", &I);
       }
@@ -1892,6 +1960,27 @@ PreservedAnalyses TcgGenPass::run(Module &M, ModuleAnalysisManager &MAM) {
     OutHeader << TF.Decl << '\n';
     OutEnabled << TF.Name << '\n';
   }
+
+    // Emit a dispatched to go from helper function address to our
+  // emitted code, if we succeeded.
+  //
+  // TODO(anjo): We get some warnings here when compiling, also move
+  // away from the header.
+  OutHeader << "int llvm_to_tcg_dispatcher(void *func, TCGTemp *ret_temp, int nargs, TCGTemp **args);\n";
+  OutSource << "\n";
+  OutSource << "#include \"exec/helper-proto.h\"\n";
+  OutSource << "int llvm_to_tcg_dispatcher(void *func, TCGTemp *ret_temp, int nargs, TCGTemp **args) {\n";
+  for (auto &TF : TranslatedFunctions) {
+    if (!TF.IsHelper) {
+      continue;
+    }
+    OutSource << "    if ((uintptr_t) func == (uintptr_t) helper_" << TF.Name << ") {\n";
+    OutSource << TF.DispatchCode;
+    OutSource << "        return 1;\n";
+    OutSource << "    }\n";
+  }
+  OutSource << "    return 0;\n";
+  OutSource << "}\n";
 
   return PreservedAnalyses::all();
 }

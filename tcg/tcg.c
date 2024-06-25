@@ -2262,6 +2262,11 @@ static void tcg_gen_callN(TCGHelperInfo *info, TCGTemp *ret, TCGTemp **args)
     }
 
     total_args = info->nr_out + info->nr_in + 2;
+    if (tcg_ctx->dispatcher) {
+        tcg_ctx->dispatcher(info->func, ret, total_args, args);
+        return;
+    }
+
     op = tcg_op_alloc(INDEX_op_call, total_args);
 
 #ifdef CONFIG_PLUGIN

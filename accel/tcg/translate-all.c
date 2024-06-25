@@ -351,6 +351,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->guest_mo = TCG_MO_ALL;
 #endif
 
+#ifdef CONFIG_LLVM_TO_TCG
+# ifdef TARGET_DISPATCHER
+    tcg_ctx->dispatcher = TARGET_DISPATCHER;
+# endif
+#endif
+
  restart_translate:
     trace_translate_block(tb, pc, tb->tc.ptr);
 
