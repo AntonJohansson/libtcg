@@ -65,3 +65,5 @@ PSEUDO_INST_DEF(VecCtpopStore,        ArgVec, PSEUDO_INST_ARGVEC(ArgPtr, ArgVec)
 
 PSEUDO_INST_DEF(SignExtract,          ArgInt, PSEUDO_INST_ARGVEC(ArgInt, ArgInt, ArgInt)),
 PSEUDO_INST_DEF(Extract,              ArgInt, PSEUDO_INST_ARGVEC(ArgInt, ArgInt, ArgInt)),
+
+PSEUDO_INST_DEF(Exception,            ArgVoid, PSEUDO_INST_ARGVEC(ArgPtr, ArgInt)),

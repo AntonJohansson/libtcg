@@ -453,6 +453,20 @@ TcgInstCombinePass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
         }
       }
 
+      if (auto *Call = dyn_cast<CallInst>(&I)) {
+        Function *F = Call->getCalledFunction();
+        StringRef Name = F->getName();
+        if (Name == "raise_exception_ra") {
+          IRBuilder<> Builder(Call);
+          Value *Op0 = Call->getArgOperand(0);
+          Value *Op1 = Call->getArgOperand(1);
+          FunctionCallee Fn = pseudoInstFunction(M, Exception, Builder.getVoidTy(), {Op0->getType(), Op1->getType()});
+          CallInst *NewCall = Builder.CreateCall(Fn, {Op0, Op1});
+          Call->replaceAllUsesWith(Call);
+          InstToErase.push_back(Call);
+        }
+      }
+
       // Independent of above
       //
       // Depends on binary op one
@@ -542,6 +556,10 @@ TcgInstCombinePass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
           BasicBlock *True = Br->getSuccessor(0);
           BasicBlock *False = Br->getSuccessor(1);
 
+          bool TrueUnreachable =
+            True->getTerminator()->getOpcode() == Instruction::Unreachable and
+            False->getTerminator()->getOpcode() != Instruction::Unreachable;
+
           auto NextIt = BbIt;
           BasicBlock *NextBB = &**(++NextIt);
           // If the next basic block is either of our true/false branches,
@@ -551,7 +569,7 @@ TcgInstCombinePass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
           // If the succeeding basic block is the true branch we invert
           // the condition so we can !fallthrough instead.
           ICmpInst::Predicate Predicate;
-          if (NextBB == True) {
+          if (NextBB == True or (TrueUnreachable and NextBB == False)) {
             std::swap(True, False);
             Predicate = ICmp->getInversePredicate();
           } else {
