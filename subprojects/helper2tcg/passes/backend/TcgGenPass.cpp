@@ -1345,6 +1345,14 @@ translateFunction(const Function *F,
             }
             tcg::genQemuStore(Out, Args[0], Args[1], MemOpStream.str().c_str());
           } break;
+          case Exception: {
+            // Map and adapt arguments to the call
+            SmallVector<TcgV, 8> IArgs;
+            for (auto Arg : Args) {
+              IArgs.push_back(tcg::materialize(Arg));
+            }
+            tcg::genCallHelper(Out, "helper_raise_exception", IArgs.begin(), IArgs.end());
+          } break;
           default:
               return mkError(Twine("Unmapped pseudo instruction ").concat(pseudoInstName(Inst.get())).str());
           }
@@ -1848,8 +1856,6 @@ translateFunction(const Function *F,
           tcg::genBrcond(Out, "TCG_COND_EQ", Val.get(), BranchVal.get(), BranchLabel);
         }
         tcg::genBr(Out, DefaultLabel);
-      } break;
-      case Instruction::Freeze: {
       } break;
       default: {
         return mkError("Instruction not yet implemented", &I);
