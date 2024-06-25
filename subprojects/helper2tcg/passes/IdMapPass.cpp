@@ -42,6 +42,14 @@ PreservedAnalyses IdMapPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &M
             InstToErase.push_back(&I);
           }
         }
+      } else if (isa<FreezeInst>(&I)) {
+        auto *IntTy0 = dyn_cast<IntegerType>(I.getOperand(0)->getType());
+        auto *IntTy1 = dyn_cast<IntegerType>(I.getType());
+        FunctionCallee Fn = pseudoInstFunction(M, IdentityMap, IntTy1, {IntTy0});
+        IRBuilder<> Builder(&I);
+        CallInst *Call = Builder.CreateCall(Fn, {I.getOperand(0)}); 
+        I.replaceAllUsesWith(Call);
+        InstToErase.push_back(&I);
       }
     }
 
