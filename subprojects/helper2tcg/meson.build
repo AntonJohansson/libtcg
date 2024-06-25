@@ -22,6 +22,7 @@ sources = [
     'passes/backend/TcgGenPass.cpp',
     'passes/backend/TcgEmit.cpp',
     'passes/llvm-compat.cpp',
+    'passes/PseudoInst.cpp',
   ]
 
 # Here's the LLVM dep that should autodetect LLVM versions, note this does not always appear to
