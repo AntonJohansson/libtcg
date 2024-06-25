@@ -2554,4 +2554,9 @@ static inline bool ctl_has_irq(CPUX86State *env)
 # define TARGET_VSYSCALL_PAGE  (UINT64_C(-10) << 20)
 #endif
 
+struct TCGTemp;
+typedef struct TCGTemp TCGTemp;
+int llvm_to_tcg_dispatcher(void *func, TCGTemp *ret_temp, int nargs, TCGTemp **args);
+#define TARGET_DISPATCHER llvm_to_tcg_dispatcher
+
 #endif /* I386_CPU_H */
