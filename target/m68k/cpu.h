@@ -631,7 +631,7 @@ static inline int get_tb_mmu_index(uint32_t flags)
     return 1;
 #else
     return !(flags & TB_FLAGS_MSR_S);
-#end
+#endif
 }
 
 void dump_mmu(CPUM68KState *env);
