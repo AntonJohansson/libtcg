@@ -140,6 +140,8 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
     env->regs[R_EDX] = (uint32_t)r;
 }
 
+#include "helper2tcg/annotate.h"
+LLVM_ANNOTATE("llvm-to-tcg")
 void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
 {
     int den, r;
